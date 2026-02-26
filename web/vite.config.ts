@@ -6,8 +6,8 @@ import path from 'path'
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd())
-  const API_TARGET = env.VITE_API_TARGET || 'http://localhost:8002'
-  const WS_TARGET = env.VITE_WS_TARGET || 'ws://localhost:8002'
+  const API_TARGET = env.VITE_API_TARGET || 'http://127.0.0.1:8002'
+  const WS_TARGET = env.VITE_WS_TARGET || 'ws://127.0.0.1:8002'
 
   return {
     plugins: [

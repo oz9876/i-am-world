@@ -338,11 +338,14 @@
         "father_short": "父",
         "mother_short": "母",
         "mortal_realm": "凡人",
+        "heaven_dialogue": "天道传音",
         "modals": {
           "set_long_term": "设定长期目标",
           "placeholder": "请输入目标...",
           "set_failed": "设定失败",
-          "clear_confirm": "确定要清空该角色的长期目标吗？"
+          "clear_confirm": "确定要清空该角色的长期目标吗？",
+          "heaven_dialogue": "天道传音",
+          "dialogue_placeholder": "输入你想对该角色说的话..."
         }
       },
       "region": {

@@ -49,5 +49,12 @@ export const avatarApi = {
 
   deleteAvatar(avatarId: string) {
     return httpClient.post<{ status: string; message: string }>('/api/action/delete_avatar', { avatar_id: avatarId });
+  },
+
+  heavenDialogue(avatarId: string, message: string) {
+    return httpClient.post<{ status: string; reply?: string; thinking?: string; message?: string }>('/api/action/heaven_dialogue', {
+      avatar_id: avatarId,
+      message
+    });
   }
 };

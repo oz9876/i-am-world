@@ -559,22 +559,22 @@ async def game_loop():
                         })
 
                 # 3. 常规位置更新（暂时只发前 50 个旧角色，减少数据量）
-                limit = 50
-                count = 0
+                limit: int = 50
+                update_count: int = 0
                 # 只遍历活人更新位置
                 for a in world.avatar_manager.get_living_avatars():
                     # 如果是新角色，已经在上面处理过了，跳过
                     if a.id in newly_born_ids:
                         continue
                         
-                    if count < limit:
+                    if update_count < limit:
                         avatar_updates.append({
                             "id": str(a.id), 
                             "x": int(getattr(a, "pos_x", 0)), 
                             "y": int(getattr(a, "pos_y", 0)),
                             "action_emoji": resolve_avatar_action_emoji(a)
                         })
-                        count += 1
+                        update_count = update_count + 1
 
                 # 构造广播数据包
                 state = {
@@ -1209,6 +1209,178 @@ def clear_long_term_objective(req: ClearObjectiveRequest):
         "status": "ok", 
         "message": "Objective cleared" if cleared else "No user objective to clear"
     }
+
+class HeavenDialogueRequest(BaseModel):
+    avatar_id: str
+    message: str
+
+@app.post("/api/action/heaven_dialogue")
+async def action_heaven_dialogue(req: HeavenDialogueRequest):
+    world = game_instance.get("world")
+    if not world:
+        raise HTTPException(status_code=503, detail="World not initialized")
+    
+    avatar = world.avatar_manager.avatars.get(req.avatar_id)
+    if not avatar:
+        raise HTTPException(status_code=404, detail="Avatar not found")
+        
+    from src.utils.llm import call_llm_with_task_name
+    from src.utils.config import CONFIG
+    from src.classes.event import Event
+    from src.i18n import t
+    
+    world_info = world.get_info(avatar=avatar, detailed=True)
+    observed = world.get_observable_avatars(avatar)
+    avatar_info = avatar.get_expanded_info(co_region_avatars=observed)
+
+    info = {
+        "avatar_name": avatar.name,
+        "avatar_info": avatar_info,
+        "world_info": world_info,
+        "message": req.message
+    }
+    
+    template_path = CONFIG.paths.templates / "heaven_dialogue.txt"
+    try:
+        res = await call_llm_with_task_name("heaven_dialogue", template_path, info)
+        
+        if res and avatar.name in res:
+            r = res[avatar.name]
+            thinking = r.get("thinking", "")
+            if thinking:
+                avatar.thinking = thinking
+                
+            reply_content = r.get("reply_content", "")
+            if reply_content:
+                # === 应用天道传音的实质影响 (Impact) ===
+                impact = r.get("impact")
+                impact_msg: str = ""
+                
+                if impact and isinstance(impact, dict):
+                    # 1. 修改目标
+                    new_obj = impact.get("new_long_term_objective")
+                    if new_obj and isinstance(new_obj, str):
+                        from src.classes.long_term_objective import LongTermObjective
+                        avatar.long_term_objective = LongTermObjective(content=new_obj, origin="llm", set_year=int(world.month_stamp.get_year()))
+                        impact_msg += f" 目标改变为【{new_obj}】。"
+                        
+                    # 1.5 修改功法
+                    new_tech = impact.get("new_technique")
+                    if new_tech and isinstance(new_tech, str):
+                        from src.classes.technique import techniques_by_name
+                        if new_tech in techniques_by_name:
+                            avatar.technique = techniques_by_name[new_tech]
+                            impact_msg += f" 领悟了新功法【{new_tech}】。"
+                            
+                    # 1.6 赐予武器
+                    new_weapon = impact.get("new_weapon")
+                    if new_weapon and isinstance(new_weapon, str):
+                        from src.classes.items.weapon import weapons_by_name
+                        if new_weapon in weapons_by_name:
+                            weapon_item = weapons_by_name[new_weapon].instantiate()
+                            avatar.change_weapon(weapon_item)
+                            impact_msg += f" 获得了兵器【{new_weapon}】。"
+                            
+                    # 1.7 赐予辅助装备/法宝
+                    new_aux = impact.get("new_auxiliary")
+                    if new_aux and isinstance(new_aux, str):
+                        from src.classes.items.auxiliary import auxiliaries_by_name
+                        if new_aux in auxiliaries_by_name:
+                            aux_item = auxiliaries_by_name[new_aux].instantiate()
+                            avatar.change_auxiliary(aux_item)
+                            impact_msg += f" 获得了法宝【{new_aux}】。"
+                    
+                    # 2. 修改气血上限/当前气血
+                    try:
+                        max_hp_change = int(impact.get("max_hp_change", 0))
+                        if max_hp_change != 0:
+                            avatar.hp.add_max(max_hp_change)
+                            impact_msg += f" 气血上限{'增加' if max_hp_change > 0 else '减少'}{abs(max_hp_change)}。"
+                    except (ValueError, TypeError):
+                        pass
+                        
+                    try:
+                        hp_change = int(impact.get("hp_change", 0))
+                        if hp_change != 0:
+                            if hp_change > 0:
+                                avatar.hp.recover(hp_change)
+                            else:
+                                avatar.hp.reduce(abs(hp_change))
+                            impact_msg += f" 气血{'恢复' if hp_change > 0 else '损失'}{abs(hp_change)}。"
+                    except (ValueError, TypeError):
+                        pass
+                        
+                    # 3. 灵石增减
+                    try:
+                        stone_change = int(impact.get("magic_stone_change", 0))
+                        if stone_change != 0:
+                            if stone_change > 0:
+                                avatar.magic_stone += stone_change
+                            else:
+                                avatar.magic_stone = max(0, avatar.magic_stone - abs(stone_change))
+                            impact_msg += f" 灵石{'获得' if stone_change > 0 else '失去'}{abs(stone_change)}。"
+                    except (ValueError, TypeError):
+                        pass
+                        
+                    # 4. 获取与失去特质
+                    from src.classes.persona import personas_by_name
+                    added_p = impact.get("add_personas", [])
+                    removed_p = impact.get("remove_personas", [])
+                    
+                    if isinstance(removed_p, list) and removed_p:
+                        removed_names = []
+                        avatar.personas = [p for p in avatar.personas if p.name not in removed_p]
+                        removed_names = [str(name) for name in removed_p]
+                        if removed_names:
+                            impact_msg += f" 失去了特质【{', '.join(removed_names)}】。"
+                            
+                    if isinstance(added_p, list) and added_p:
+                        added_names: list[str] = []
+                        for p_name in added_p:
+                            p_name_str = str(p_name)
+                            if p_name_str in personas_by_name:
+                                # 只添加目前没有的特质
+                                if not any(p.name == p_name_str for p in avatar.personas):
+                                    avatar.personas.append(personas_by_name[p_name_str])
+                                    added_names.append(p_name_str)
+                        if added_names:
+                            impact_msg += f" 获得了特质【{', '.join(added_names)}】。"
+                            
+                    if impact_msg:
+                        avatar.recalc_effects()
+
+                # 使用固定的语言或者根据语言处理。这里用中文后背英文处理，但最好能通过 t() 实现。
+                try:
+                    content = t("heavenly_voice_event", 
+                                avatar_name=avatar.name, message=req.message, reply_content=reply_content)
+                except Exception:
+                    content = f"【天道传音】对{avatar.name}说：{req.message}\n{avatar.name}回应：{reply_content}"
+                
+                if impact_msg:
+                    content += f"\n(天道影响：{impact_msg})"
+                    
+                event = Event(world.month_stamp, content, related_avatars=[avatar.id])
+                avatar.add_event(event)
+
+                try:
+                    await manager.broadcast({
+                        "type": "events",
+                        "data": serialize_events_for_client([event])
+                    })
+                except Exception as e:
+                    import logging
+                    logging.error(f"Failed to broadcast heaven dialogue event: {e}")
+
+                return {"status": "ok", "reply": reply_content, "thinking": thinking}
+            else:
+                return {"status": "error", "message": "No reply content"}
+        else:
+            return {"status": "error", "message": "LLM returned empty or malformed response."}
+            
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- 角色管理 API ---
 

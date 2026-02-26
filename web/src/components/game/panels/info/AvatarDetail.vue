@@ -21,6 +21,9 @@ const uiStore = useUiStore();
 const secondaryItem = ref<EffectEntity | null>(null);
 const showObjectiveModal = ref(false);
 const objectiveContent = ref('');
+const showDialogueModal = ref(false);
+const dialogueContent = ref('');
+const isDialoguing = ref(false);
 
 // --- Computeds ---
 
@@ -119,6 +122,26 @@ async function handleClearObjective() {
     console.error(e);
   }
 }
+
+async function handleHeavenDialogue() {
+  if (!dialogueContent.value.trim() || isDialoguing.value) return;
+  
+  isDialoguing.value = true;
+  try {
+    const res = await avatarApi.heavenDialogue(props.data.id, dialogueContent.value) as any;
+    if (res && res.status === 'ok') {
+      showDialogueModal.value = false;
+      dialogueContent.value = '';
+    } else {
+      alert(res?.message || t('common.error'));
+    }
+  } catch (e) {
+    console.error(e);
+    alert(t('common.error'));
+  } finally {
+    isDialoguing.value = false;
+  }
+}
 </script>
 
 <template>
@@ -132,6 +155,7 @@ async function handleClearObjective() {
     <div class="actions-bar" v-if="!data.is_dead">
       <button class="btn primary" @click="showObjectiveModal = true">{{ t('game.info_panel.avatar.set_objective') }}</button>
       <button class="btn" @click="handleClearObjective">{{ t('game.info_panel.avatar.clear_objective') }}</button>
+      <button class="btn heaven-btn" @click="showDialogueModal = true">{{ t('game.info_panel.avatar.heaven_dialogue') || '天道传音' }}</button>
     </div>
     <div class="dead-banner" v-else>
       {{ t('game.info_panel.avatar.dead_with_reason', { reason: data.death_info?.reason || t('game.info_panel.avatar.unknown_reason') }) }}
@@ -335,6 +359,21 @@ async function handleClearObjective() {
         </div>
       </div>
     </div>
+
+    <!-- Heaven Dialogue Modal -->
+    <div v-if="showDialogueModal" class="modal-overlay">
+      <div class="modal">
+        <h3>{{ t('game.info_panel.avatar.modals.heaven_dialogue') || '天道传音' }}</h3>
+        <p style="font-size: 12px; color: #888; margin: 0 0 8px 0;">以天道之名，对 {{ data.name }} 传音：</p>
+        <textarea v-model="dialogueContent" :placeholder="t('game.info_panel.avatar.modals.dialogue_placeholder') || '输入你想对该角色说的话...'"></textarea>
+        <div class="modal-footer">
+          <button class="btn primary" @click="handleHeavenDialogue" :disabled="isDialoguing">
+            {{ isDialoguing ? '传音中...' : t('common.confirm') }}
+          </button>
+          <button class="btn" @click="showDialogueModal = false" :disabled="isDialoguing">{{ t('common.cancel') }}</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -505,6 +544,21 @@ async function handleClearObjective() {
 
 .btn.primary:hover {
   background: #1890ff;
+}
+
+.btn.heaven-btn {
+  background: #722ed1;
+  color: white;
+  border: none;
+}
+
+.btn.heaven-btn:hover {
+  background: #9254de;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* Modal */
