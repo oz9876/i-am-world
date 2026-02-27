@@ -2,6 +2,7 @@
 import { computed, ref, watch } from 'vue';
 import { onClickOutside } from '@vueuse/core';
 import { useUiStore } from '../../../../stores/ui';
+import { useWorldStore } from '../../../../stores/world';
 import { useI18n } from 'vue-i18n';
 
 const { t } = useI18n();
@@ -12,6 +13,7 @@ import RegionDetailView from './RegionDetail.vue';
 import SectDetailView from './SectDetail.vue';
 
 const uiStore = useUiStore();
+const worldStore = useWorldStore();
 const panelRef = ref<HTMLElement | null>(null);
 let lastOpenAt = 0;
 
@@ -61,6 +63,23 @@ function close() {
   showNicknameReason.value = false;
 }
 
+function locateOnMap() {
+  const target = uiStore.selectedTarget;
+  if (!target || target.type !== 'avatar') return;
+
+  const avatar = worldStore.avatarList.find(a => a.id === target.id);
+  if (!avatar) return;
+
+  const TILE_SIZE = 64;
+  const centerX = (avatar.x + 0.5) * TILE_SIZE;
+  const centerY = (avatar.y + 0.5) * TILE_SIZE;
+
+  const viewport = (window as any).__viewport;
+  if (viewport && typeof viewport.moveCenter === 'function') {
+    viewport.moveCenter(centerX, centerY);
+  }
+}
+
 // 使用 vueuse 的 onClickOutside 替代原生监听
 onClickOutside(panelRef, () => {
   // Prevent closing immediately after opening if click propagated
@@ -82,7 +101,22 @@ watch(() => uiStore.selectedTarget, (val) => {
     <!-- Header -->
     <div class="panel-header">
       <div class="title-group">
-        <div class="main-title">{{ title }}</div>
+        <div class="main-title">
+          <span class="main-title-text">{{ title }}</span>
+          <button
+            v-if="uiStore.selectedTarget?.type === 'avatar'"
+            class="locate-btn"
+            type="button"
+            @click.stop="locateOnMap"
+          >
+            <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+              <path
+                fill="currentColor"
+                d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"
+              />
+            </svg>
+          </button>
+        </div>
         <div 
           v-if="subTitle" 
           class="sub-title" 
@@ -212,6 +246,33 @@ watch(() => uiStore.selectedTarget, (val) => {
 .main-title {
   font-size: 16px;
   font-weight: bold;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.main-title-text {
+  white-space: nowrap;
+}
+
+.locate-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  margin: 0;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+}
+
+.locate-btn:hover {
+  color: #fff;
+  background: rgba(255, 255, 255, 0.08);
 }
 
 .close-btn {

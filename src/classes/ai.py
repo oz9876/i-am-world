@@ -81,16 +81,15 @@ class LLMAI(AI):
                 continue
                 
             r = res[avatar.name]
-            # 仅接受 action_name_params_pairs，不再支持单个 action_name/action_params
-            raw_pairs = r.get("action_name_params_pairs", [])
+            raw_pairs = r.get("actions", r.get("action_name_params_pairs", []))
             pairs: ACTION_NAME_PARAMS_PAIRS = []
             
             for p in raw_pairs:
                 if isinstance(p, list) and len(p) == 2:
                     # LLM 可能返回 null 作为 params，需要转为空字典。
                     pairs.append((p[0], p[1] or {}))
-                elif isinstance(p, dict) and "action_name" in p and "action_params" in p:
-                    pairs.append((p["action_name"], p["action_params"] or {}))
+                elif isinstance(p, dict) and ("action" in p or "action_name" in p) and ("params" in p or "action_params" in p):
+                    pairs.append((p.get("action", p.get("action_name")), p.get("params", p.get("action_params")) or {}))
                 else:
                     continue
             
@@ -98,12 +97,13 @@ class LLMAI(AI):
             if not pairs:
                 continue # Skip if no valid actions found
 
-            avatar_thinking = r.get("avatar_thinking", r.get("thinking", ""))
-            short_term_objective = r.get("short_term_objective", "")
+            avatar_thinking = r.get("thought", r.get("avatar_thinking", r.get("thinking", "")))
+            short_term_objective = r.get("goal", r.get("short_term_objective", ""))
+
             
             # 更新情绪
             from src.classes.emotions import EmotionType
-            raw_emotion = r.get("current_emotion", "emotion_calm")
+            raw_emotion = r.get("emotion", r.get("current_emotion", "emotion_calm"))
             try:
                 # 尝试通过 value 获取枚举
                 avatar.emotion = EmotionType(raw_emotion)

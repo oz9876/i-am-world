@@ -303,7 +303,7 @@ def get_avatar_expanded_info(
 
     observed: list[str] = []
     if co_region_avatars:
-        for other in co_region_avatars[:8]:
+        for other in co_region_avatars[:5]:
             observed.append(t("{name}, Realm: {realm}", name=other.name, realm=other.cultivation_progress.get_info()))
 
     # 历史事件改为从全局事件管理器分类查询

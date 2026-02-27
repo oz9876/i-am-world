@@ -608,9 +608,9 @@ msgstr "采用凡间珍草炼制，略微延缓衰老（限服一颗）。"
 msgid "ELIXIR_3006_NAME"
 msgstr "筑基长生丹"
 
-#. elixir.csv: 取天地灵草炼制，可延寿十载（限服一颗）。...
+#. elixir.csv: 取天地灵草炼制，可延寿五十载（限服一颗）。...
 msgid "ELIXIR_3006_DESC"
-msgstr "取天地灵草炼制，可延寿十载（限服一颗）。"
+msgstr "取天地灵草炼制，可延寿五十载（限服一颗）。"
 
 #. elixir.csv: 金丹长生丹
 msgid "ELIXIR_3007_NAME"
@@ -618,7 +618,7 @@ msgstr "金丹长生丹"
 
 #. elixir.csv: 夺天地造化，凡人服之立毙，金丹修士服之延...
 msgid "ELIXIR_3007_DESC"
-msgstr "夺天地造化，凡人服之立毙，金丹修士服之延寿半甲子（限服一颗）。"
+msgstr "夺天地造化，凡人服之立毙，金丹修士服之延寿一甲子（限服一颗）。"
 
 #. elixir.csv: 元婴长生丹
 msgid "ELIXIR_3008_NAME"

@@ -32,7 +32,15 @@
     "about_github": "Support on GitHub",
     "about_github_desc": "This is an open-source project. If you have a GitHub account, please support us with a Star!",
     "about_contributors": "Contributors",
-    "about_contributors_desc": "Thanks to all the creators who contributed to this open-source project!"
+    "about_contributors_desc": "Thanks to all the creators who contributed to this open-source project!",
+    "encyclopedia": "Encyclopedia",
+    "search": "Search...",
+    "no_data": "No Data",
+    "desc": "Description",
+    "effect": "Effect",
+    "attribute": "Attribute",
+    "category": "Category",
+    "select_item_to_view": "Please select an item on the left to view details"
   },
   "save_load": {
     "loading": "Loading...",

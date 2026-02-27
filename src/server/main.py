@@ -33,6 +33,8 @@ from src.classes.core.sect import sects_by_id
 from src.classes.technique import techniques_by_id
 from src.classes.items.weapon import weapons_by_id
 from src.classes.items.auxiliary import auxiliaries_by_id
+from src.classes.items.elixir import elixirs_by_id
+from src.classes.material import materials_by_id
 from src.classes.appearance import get_appearance_by_level
 from src.classes.persona import personas_by_id
 from src.systems.cultivation import REALM_ORDER
@@ -752,6 +754,17 @@ async def websocket_endpoint(websocket: WebSocket):
 def get_avatar_meta():
     return AVATAR_ASSETS
 
+@app.get("/api/meta/encyclopedia")
+def get_encyclopedia():
+    """获取所有可用物品及功法的图鉴信息"""
+    return {
+        "weapons": [w.get_structured_info() for w in weapons_by_id.values()],
+        "materials": [m.get_structured_info() for m in materials_by_id.values()],
+        "elixirs": [e.get_structured_info() for e in elixirs_by_id.values()],
+        "auxiliaries": [a.get_structured_info() for a in auxiliaries_by_id.values()],
+        "techniques": [t.get_structured_info() for t in techniques_by_id.values()],
+    }
+
 
 @app.get("/api/state")
 def get_state():
@@ -1289,6 +1302,16 @@ async def action_heaven_dialogue(req: HeavenDialogueRequest):
                             aux_item = auxiliaries_by_name[new_aux].instantiate()
                             avatar.change_auxiliary(aux_item)
                             impact_msg += f" 获得了法宝【{new_aux}】。"
+                    
+                    # 1.8 赐予丹药（并立即服用）
+                    new_elixir = impact.get("new_elixir")
+                    if new_elixir and isinstance(new_elixir, str):
+                        from src.classes.items.elixir import elixirs_by_name
+                        if new_elixir in elixirs_by_name and elixirs_by_name[new_elixir]:
+                            elixir_obj = elixirs_by_name[new_elixir][0]
+                            elixir_inst = getattr(elixir_obj, "instantiate", lambda: elixir_obj)()
+                            if avatar.consume_elixir(elixir_inst):
+                                impact_msg += f" 服用了丹药【{new_elixir}】。"
                     
                     # 2. 修改气血上限/当前气血
                     try:

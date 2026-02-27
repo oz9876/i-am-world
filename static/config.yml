@@ -3,7 +3,7 @@ meta:
 
 llm:
   default_modes:
-    action_decision: "normal"
+    action_decision: "fast"
     long_term_objective: "normal"
     nickname: "normal"
     single_choice: "normal"
@@ -46,8 +46,8 @@ avatar:
   persona_num: 3
 
 social:
-  major_event_context_num: 10  # 大事（长期记忆）展示数量
-  minor_event_context_num: 10  # 小事（短期记忆）展示数量
+  major_event_context_num: 5  # 大事（长期记忆）展示数量
+  minor_event_context_num: 5  # 小事（短期记忆）展示数量
   relation_check_threshold: 5 # 关系检查需要的交互次数
 
 nickname:

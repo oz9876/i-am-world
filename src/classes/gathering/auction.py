@@ -1,9 +1,13 @@
 from typing import List, Dict, TYPE_CHECKING
 import asyncio
+import random
+
 from src.classes.gathering.gathering import Gathering, register_gathering
 from src.classes.event import Event
 from src.utils.config import CONFIG
 from src.utils.llm.client import call_llm_with_template
+from src.systems.cultivation import Realm
+from src.classes.items.elixir import elixirs_by_id, Elixir
 
 if TYPE_CHECKING:
     from src.classes.core.world import World
@@ -18,6 +22,8 @@ class Auction(Gathering):
     
     # 类变量 - LLM Prompt
     STORY_PROMPT_ID = "auction_story_prompt"
+    # 每次拍卖额外加入的高阶丹药数量上限
+    EXTRA_ELIXIRS_PER_AUCTION = 5
     
     @classmethod
     def get_story_prompt(cls) -> str:
@@ -58,10 +64,23 @@ class Auction(Gathering):
         
         # 收集流通管理器中的物品
         circulation = world.circulation
-        all_items = []
+        all_items: List["Item"] = []
         all_items.extend(circulation.sold_weapons)
         all_items.extend(circulation.sold_auxiliaries)
         all_items.extend(circulation.sold_elixirs)
+
+        # 为了让灵石更有用武之地，这里在现有流通物品基础上，
+        # 额外引入一些高阶丹药作为系统拍卖品（不依赖玩家事先售出）。
+        existing_ids = {getattr(item, "id", None) for item in all_items}
+        candidate_elixirs: List[Elixir] = [
+            e
+            for e in elixirs_by_id.values()
+            if e.id not in existing_ids and e.realm != Realm.Qi_Refinement
+        ]
+        if candidate_elixirs and self.EXTRA_ELIXIRS_PER_AUCTION > 0:
+            random.shuffle(candidate_elixirs)
+            extra = candidate_elixirs[: self.EXTRA_ELIXIRS_PER_AUCTION]
+            all_items.extend(extra)
         
         for item in all_items:
             # 假设所有 item 都有 get_info 或类似方法
